@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { uploadImage } from "@/lib/cloudinary";
+import { ImagePlus, X, Loader } from "lucide-react";
 
 const CATEGORIES = [
   "Céréales", "Maraîchage", "Fruits",
@@ -19,7 +21,9 @@ export default function PublierAnnonce() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -47,6 +51,36 @@ export default function PublierAnnonce() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (images.length + files.length > 4) {
+      setError("Maximum 4 photos par annonce");
+      return;
+    }
+
+    setUploadingImages(true);
+    setError("");
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of Array.from(files)) {
+        const url = await uploadImage(file);
+        uploadedUrls.push(url);
+      }
+      setImages([...images, ...uploadedUrls]);
+    } catch {
+      setError("Erreur lors de l'upload des photos");
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -67,7 +101,7 @@ export default function PublierAnnonce() {
         category: form.category,
         department: form.department,
         commune: form.commune,
-        images: [],
+        images: images,
         available: true,
         sellerId: user.id,
         sellerName: user.name,
@@ -99,11 +133,56 @@ export default function PublierAnnonce() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
 
+        {/* Upload photos */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Photos du produit <span className="text-gray-400 font-normal">(max 4)</span>
+          </label>
+
+          <div className="grid grid-cols-4 gap-3">
+            {images.map((url, index) => (
+              <div key={index} className="relative aspect-square">
+                <img
+                  src={url}
+                  alt={"photo " + (index + 1)}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+
+            {images.length < 4 && (
+              <label className="aspect-square border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#2D6A4F] transition">
+                {uploadingImages ? (
+                  <Loader size={20} className="text-gray-400 animate-spin" />
+                ) : (
+                  <>
+                    <ImagePlus size={20} className="text-gray-400" />
+                    <span className="text-xs text-gray-400 mt-1">Ajouter</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploadingImages}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
         {/* Titre */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nom du produit
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
           <input
             type="text" name="title" value={form.title}
             onChange={handleChange} required placeholder="Ex: Maïs local blanc"
@@ -113,9 +192,7 @@ export default function PublierAnnonce() {
 
         {/* Catégorie */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Catégorie
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
           <select
             name="category" value={form.category}
             onChange={handleChange} required
@@ -128,9 +205,7 @@ export default function PublierAnnonce() {
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
           <textarea
             name="description" value={form.description}
             onChange={handleChange} required rows={4}
@@ -142,9 +217,7 @@ export default function PublierAnnonce() {
         {/* Prix + Unité */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Prix (FCFA)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Prix (FCFA)</label>
             <input
               type="number" name="price" value={form.price}
               onChange={handleChange} required min="0" placeholder="Ex: 15000"
@@ -152,12 +225,10 @@ export default function PublierAnnonce() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unité
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
             <input
               type="text" name="unit" value={form.unit}
-              onChange={handleChange} required placeholder="Ex: sac 100kg, tonne"
+              onChange={handleChange} required placeholder="Ex: sac 100kg"
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#2D6A4F] focus:ring-1 focus:ring-[#2D6A4F]"
             />
           </div>
@@ -165,9 +236,7 @@ export default function PublierAnnonce() {
 
         {/* Quantité */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quantité disponible
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Quantité disponible</label>
           <input
             type="number" name="quantity" value={form.quantity}
             onChange={handleChange} required min="1" placeholder="Ex: 50"
@@ -178,9 +247,7 @@ export default function PublierAnnonce() {
         {/* Département + Commune */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Département
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
             <select
               name="department" value={form.department}
               onChange={handleChange} required
@@ -191,9 +258,7 @@ export default function PublierAnnonce() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Commune
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Commune</label>
             <input
               type="text" name="commune" value={form.commune}
               onChange={handleChange} required placeholder="Ex: Bohicon"
@@ -203,7 +268,7 @@ export default function PublierAnnonce() {
         </div>
 
         <button
-          type="submit" disabled={loading}
+          type="submit" disabled={loading || uploadingImages}
           className="w-full bg-[#2D6A4F] hover:bg-[#245a42] text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50"
         >
           {loading ? "Publication en cours..." : "Publier l'annonce"}
