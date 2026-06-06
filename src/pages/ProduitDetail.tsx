@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Product } from "@/types";
-import { MapPin, Phone, ArrowLeft, ShoppingCart } from "lucide-react";
+import { MapPin,Phone,  ArrowLeft, ShoppingCart, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import StarRating from "@/components/ui/StarRating";
+import ReviewModal from "@/components/ui/ReviewModal";
+
+interface Review {
+  id: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: unknown;
+}
 
 export default function ProduitDetail() {
   const { id } = useParams();
@@ -13,7 +23,20 @@ export default function ProduitDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [contacted, setContacted] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  const fetchReviews = async () => {
+    if (!id) return;
+    const q = query(collection(db, "reviews"), where("productId", "==", id));
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as Review[];
+    setReviews(data);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -31,6 +54,7 @@ export default function ProduitDetail() {
       }
     };
     fetchProduct();
+    fetchReviews();
   }, [id]);
 
   if (loading) {
@@ -92,10 +116,23 @@ export default function ProduitDetail() {
             </span>
           </div>
 
-          <div className="flex items-center gap-1 text-sm text-gray-400 mb-4">
+          <div className="flex items-center gap-1 text-sm text-gray-400 mb-2">
             <MapPin size={14} />
             <span>{product.commune}, {product.department}</span>
           </div>
+
+          {(product as Product & { rating?: number; reviewCount?: number }).rating && (
+            <div className="flex items-center gap-2 mb-4">
+              <StarRating
+                rating={(product as Product & { rating?: number }).rating}
+                readonly
+                size={16}
+              />
+              <span className="text-sm text-gray-400">
+                ({(product as Product & { reviewCount?: number }).reviewCount || 0} avis)
+              </span>
+            </div>
+          )}
 
           <p className="text-gray-600 text-sm leading-relaxed mb-6">
             {product.description}
@@ -159,21 +196,6 @@ export default function ProduitDetail() {
                   <ShoppingCart size={18} />
                   Contacter le vendeur
                 </button>
-                {contacted && (
-                  <div className="bg-[#D8F3DC] border border-[#52B788] text-[#2D6A4F] rounded-xl p-4 text-sm">
-                    <p className="font-semibold mb-1">📞 Coordonnées du vendeur</p>
-                    <p className="font-bold text-lg">{product.sellerName}</p>
-                    {product.sellerPhone && (
-                      
-                        <a href={"tel:" + product.sellerPhone}
-                        className="flex items-center gap-2 mt-2 text-[#2D6A4F] font-medium"
-                      >
-                        <Phone size={16} />
-                        {product.sellerPhone}
-                      </a>
-                    )}
-                  </div>
-                )}
               </div>
             )
           ) : (
@@ -186,6 +208,63 @@ export default function ProduitDetail() {
           )}
         </div>
       </div>
+
+      {/* Avis */}
+      <div className="mt-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-800">
+            Avis ({reviews.length})
+          </h2>
+          {user && user.id !== product.sellerId && !reviewSuccess && (
+            <button
+              onClick={() => setShowReviewModal(true)}
+              className="flex items-center gap-2 text-sm bg-[#F4A261] hover:bg-[#e8935a] text-white font-medium px-4 py-2 rounded-xl transition"
+            >
+              <Star size={16} />
+              Laisser un avis
+            </button>
+          )}
+          {reviewSuccess && (
+            <span className="text-sm text-green-600 font-medium">✅ Avis envoyé !</span>
+          )}
+        </div>
+
+        {reviews.length === 0 ? (
+          <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+            <span className="text-4xl">⭐</span>
+            <p className="text-gray-400 mt-3">Aucun avis pour ce produit</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-semibold text-gray-800">{review.userName}</p>
+                  <StarRating rating={review.rating} readonly size={16} />
+                </div>
+                {review.comment && (
+                  <p className="text-sm text-gray-600">{review.comment}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showReviewModal && (
+        <ReviewModal
+          sellerId={product.sellerId}
+          sellerName={product.sellerName}
+          productId={product.id}
+          productTitle={product.title}
+          onClose={() => setShowReviewModal(false)}
+          onSuccess={() => {
+            setShowReviewModal(false);
+            setReviewSuccess(true);
+            fetchReviews();
+          }}
+        />
+      )}
     </div>
   );
 }
