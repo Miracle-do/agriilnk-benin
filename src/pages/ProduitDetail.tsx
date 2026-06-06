@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Product } from "@/types";
-import { MapPin,Phone,  ArrowLeft, ShoppingCart, Star } from "lucide-react";
+import { MapPin,  ArrowLeft, ShoppingCart, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import StarRating from "@/components/ui/StarRating";
 import ReviewModal from "@/components/ui/ReviewModal";
