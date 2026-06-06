@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { MessageSquare, Plus, User, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -54,10 +55,12 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
+            {user && <NotificationBell />}
               <Link
                 to="/dashboard"
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#2D6A4F] transition"
               >
+                
                 <div className="w-8 h-8 bg-[#D8F3DC] rounded-full flex items-center justify-center">
                   {user.avatar ? (
                     <img src={user.avatar} className="w-8 h-8 rounded-full object-cover" />

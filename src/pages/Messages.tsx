@@ -7,7 +7,8 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import type { Message } from "@/types";
 import { Send, ArrowLeft } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";import { createNotification } from "@/lib/notifications";
+
 
 interface Conversation {
   userId: string;
@@ -114,20 +115,28 @@ useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !selectedUser) return;
+ const sendMessage = async () => {
+  if (!newMessage.trim() || !user || !selectedUser) return;
 
-    await addDoc(collection(db, "messages"), {
-      senderId: user.id,
-      senderName: user.name,
-      receiverId: selectedUser.userId,
-      content: newMessage.trim(),
-      read: false,
-      createdAt: serverTimestamp(),
-    });
+  await addDoc(collection(db, "messages"), {
+    senderId: user.id,
+    senderName: user.name,
+    receiverId: selectedUser.userId,
+    content: newMessage.trim(),
+    read: false,
+    createdAt: serverTimestamp(),
+  });
 
-    setNewMessage("");
-  };
+  await createNotification(
+    selectedUser.userId,
+    "Nouveau message de " + user.name,
+    newMessage.trim(),
+    "message",
+    "/messages"
+  );
+
+  setNewMessage("");
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
