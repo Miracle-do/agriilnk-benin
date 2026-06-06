@@ -8,6 +8,7 @@ import PublierAnnonce from "@/pages/PublierAnnonce";
 import ProduitDetail from "@/pages/ProduitDetail";
 import Dashboard from "@/pages/Dashboard";
 import Home from "@/pages/Home";
+import Messages from "@/pages/Messages";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ function AppRoutes() {
 
       {/* Pages avec navbar */}
       <Route element={<Layout />}>
+      <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       <Route path="/produit/:id" element={<ProduitDetail />} />
       <Route path="/publier" element={<ProtectedRoute><PublierAnnonce /></ProtectedRoute>} />
        <Route path="/" element={<Home />} />

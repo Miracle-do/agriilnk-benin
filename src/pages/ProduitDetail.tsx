@@ -153,7 +153,7 @@ export default function ProduitDetail() {
             ) : (
               <div className="space-y-3">
                 <button
-                  onClick={() => setContacted(true)}
+                  onClick={() => navigate("/messages?userId=" + product.sellerId + "&userName=" + product.sellerName)}
                   className="w-full flex items-center justify-center gap-2 bg-[#2D6A4F] hover:bg-[#245a42] text-white font-semibold py-3 rounded-xl transition"
                 >
                   <ShoppingCart size={18} />

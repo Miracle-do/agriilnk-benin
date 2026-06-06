@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, User, LogOut, Menu, X } from "lucide-react";
+import { MessageSquare, Plus, User, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 export default function Navbar() {
@@ -33,6 +33,12 @@ export default function Navbar() {
           <Link to="/marketplace" className="text-sm text-gray-600 hover:text-[#2D6A4F] font-medium transition">
             Marketplace
           </Link>
+          {user && (
+  <Link to="/messages" className="text-sm text-gray-600 hover:text-[#2D6A4F] font-medium transition flex items-center gap-1">
+    <MessageSquare size={16} />
+    Messages
+  </Link>
+)}
           {user?.role === "PRODUCTEUR" && (
             <Link
               to="/publier"
